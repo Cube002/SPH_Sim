@@ -1,0 +1,23 @@
+# CMake build directories
+build/
+Build/
+build-*/
+
+# Build artifacts (in case someone configures in-tree)
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+cmake_install.cmake
+*.o
+*.a
+*.so
+*.exe
+
+# IDE / editor folders
+.vs/
+.vscode/
+.idea/
+*.sublime-*
+
+# Simulation output files
+*.vtk
