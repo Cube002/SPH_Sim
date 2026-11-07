@@ -73,7 +73,7 @@ TEST_CASE("cubic_spline_grad: branch 2 finite differences", "[kernel][grad]")
     CHECK(grad_ana[2] == Catch::Approx(grad_fd[2]).epsilon(1e-6));
 }
 
-TEST_CASE("cubic_spline_grad: zero distance", "[kernel][grad]")
+TEST_CASE("cubic_spline_grad: zero distance", "[kernel][grad]") // this is an edge case we should be carefull about. the grad at distance 0 should be zero
 {
     Eigen::Vector3d xi(1.0, 2.0, 3.0);
     Eigen::Vector3d xj(1.0, 2.0, 3.0);

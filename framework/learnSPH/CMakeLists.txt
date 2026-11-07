@@ -19,7 +19,9 @@ set(SOURCE_FILES
 	sampling.h
 	sampling.cpp
 	kernel.cpp
-	kernel.h)
+	kernel.h
+	sph_math.cpp
+	sph_math.h)
     
 # Create a library version so it can be linked with other modules
 add_library(learnSPH ${SOURCE_FILES})

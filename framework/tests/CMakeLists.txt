@@ -8,7 +8,8 @@ set(SOURCE_FILES
 	sample_tests.cpp)
     
 add_executable(learnSPH_tests ${SOURCE_FILES}
-    kernel_tests.cpp)
+    kernel_tests.cpp
+    density_tests.cpp)
 target_include_directories(learnSPH_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../learnSPH/include)
 target_link_libraries(learnSPH_tests learnSPH Catch2::Catch2WithMain)
 

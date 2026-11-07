@@ -1,59 +1,66 @@
-#include <stdlib.h>     // rand
 #include <iostream>
 #include <vector>
 #include <string>
-#include <algorithm>    // std::max
 
 #include <Eigen/Dense>
 #include <CompactNSearch/CompactNSearch>
 
 #include "../learnSPH/io.h"
 #include "../learnSPH/sampling.h"
+#include "../learnSPH/sph_math.h"
 
 int main()
 {
-	std::cout << "Welcome to the learnSPH framework!!" << std::endl;
-	std::cout << "Generating a sample scene...";
 
-	// Load a obj surface mesh
-	const std::vector<learnSPH::TriMesh> meshes = learnSPH::read_tri_meshes_from_obj("../res/box.obj");
-	const learnSPH::TriMesh& box = meshes[0];
+	//Values defined:
+	const double particle_radius = 0.0025;
+	const double particle_diameter = 2.0 * particle_radius;
+	const double fluid_sampling_distance = particle_diameter;
+	const double smoothing_length = 1.2 * particle_diameter;
+	const double compact_support = 2.0 * smoothing_length;
 
-	// Sample the mesh with particles
-	const double sampling_distance = 0.05;
+	const double fluid_density = 1000.0;
+	const double particle_mass = fluid_density
+		* fluid_sampling_distance
+		* fluid_sampling_distance
+		* fluid_sampling_distance;
+
+	//Define Fluid Domain:
+	const int n_per_axis = 20;
+	const double box_size = (n_per_axis - 0.5) * fluid_sampling_distance;
 	std::vector<Eigen::Vector3d> particles;
-	learnSPH::sampling::triangle_mesh(particles, box.vertices, box.triangles, sampling_distance);
+	learnSPH::sampling::fluid_box(
+		particles,
+		Eigen::Vector3d::Zero(),
+		Eigen::Vector3d::Constant(box_size),
+		fluid_sampling_distance);
 
-	// Initialize data vectors
-	std::vector<double> particles_scalar_data(particles.size());
-	std::vector<Eigen::Vector3d> particles_vector_data(particles.size());
+	//Prepare search module:
+	CompactNSearch::NeighborhoodSearch nsearch(compact_support);
+	const unsigned int fluid_id = nsearch.add_point_set(
+		particles[0].data(), particles.size(), true);
 
-	// Scalar data will be the particle_id
-	for (int i = 0; i < (int)particles.size(); i++) {
-		particles_scalar_data[i] = i;
+	std::vector<double> densities;
+
+	const int num_time_steps = 100;
+	const double dt = 0.01;
+	double time = 0.0;
+	//Time Loop
+	for (int time_step = 0; time_step < num_time_steps; ++time_step)
+	{
+		nsearch.find_neighbors(true);
+		learnSPH::sph_math::compute_density(
+			particles, densities, nsearch, fluid_id,
+			particle_mass, smoothing_length);
+
+		const std::string filename = "../res/density_" + std::to_string(time_step) + ".vtk";
+		learnSPH::write_particles_to_vtk(filename, particles, densities);
+
+		time += dt;
 	}
-	
-	// Simulation loop
-	for (int time_step = 0; time_step < 100; time_step++) {
 
-		for (int particle_i = 0; particle_i < (int)particles.size(); particle_i++) {
-			// Move particles a bit down in the Z direction
-			particles[particle_i][2] -= 0.025;
-
-			// Clamp the Z coord to the floor
-			particles[particle_i][2] = std::max(particles[particle_i][2], -1.0);
-			
-			// Vector data is going to be the position
-			particles_vector_data[particle_i] = particles[particle_i] - Eigen::Vector3d(-1, -1, -1);
-		}
-
-		// Save output
-		const std::string filename = "../res/example_" + std::to_string(time_step) + ".vtk";
-		learnSPH::write_particles_to_vtk(filename, particles, particles_scalar_data, particles_vector_data);
-	}
-
-	std::cout << "completed!" << std::endl;
-	std::cout << "The scene files have been saved in the folder `<build_folder>/res`. \nYou can visualize them with Blender by using the Blender Sequence Loaded addon." << std::endl;
+	std::cout << "Simulation finished at t = " << time << " s" << std::endl;
+	std::cout << "The scene files have been saved in the folder `<build_folder>/res`." << std::endl;
 
 	return 0;
 }

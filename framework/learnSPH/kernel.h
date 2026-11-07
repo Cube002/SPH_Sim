@@ -10,7 +10,9 @@ namespace learnSPH
 		constexpr double PI = 3.14159265358979323846;
 		
 		double cubic_spline(const double q);
+		double cubic_spline_fast(const double q);
 		double cubic_grad_spline(const double q);
+		double cubic_grad_spline_fast(const double q);
 		
 		// Kernel value W(xi - xj; h) = (1/h^3) * s(q), q = |xi-xj|/h
 		inline double cubic_spline(const Eigen::Vector3d &xi, const Eigen::Vector3d &xj, const double h)
