@@ -21,3 +21,14 @@ add_learnsph_app(assignment4_forces_demo assignment4_forces_demo.cpp)
 
 # Assignment 5: first no-boundary baseline test case.
 add_learnsph_app(assignment5_test1_no_forces assignment5_test1_no_forces.cpp)
+
+# Assignment 5a: incremental feature tests without boundaries.
+add_learnsph_app(assignment5_a_i_pressure assignment5_a_i_pressure.cpp)
+add_learnsph_app(assignment5_a_ii_viscosity assignment5_a_ii_viscosity.cpp)
+add_learnsph_app(assignment5_a_iii_two_blocks assignment5_a_iii_two_blocks.cpp)
+add_learnsph_app(assignment5_a_iv_gravity assignment5_a_iv_gravity.cpp)
+add_learnsph_app(assignment5_a_v_floor assignment5_a_v_floor.cpp)
+add_learnsph_app(assignment5_a_vi_boundary_viscosity assignment5_a_vi_boundary_viscosity.cpp)
+
+# Assignment 5b: dam break.
+add_learnsph_app(assignment5_b_dam_break assignment5_b_dam_break.cpp)

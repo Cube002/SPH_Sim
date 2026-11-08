@@ -1,5 +1,6 @@
 #include "sph_math.h"
 #include "kernel.h"
+#include "parallel.h"
 
 #include <algorithm>
 #include <cassert>
@@ -100,6 +101,9 @@ void learnSPH::sph_math::compute_density(
 	const unsigned int n = static_cast<unsigned int>(fluid_particles.size());
 	densities.assign(n, 0.0);
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(n))
+#endif
 	for (unsigned int i = 0; i < n; ++i)
 	{
 		// CompactNSearch does not return particle i as its own neighbor.
@@ -138,6 +142,9 @@ void learnSPH::sph_math::compute_density(
 	const unsigned int n = static_cast<unsigned int>(fluid_particles.size());
 	densities.assign(n, 0.0);
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(n))
+#endif
 	for (unsigned int i = 0; i < n; ++i)
 	{
 		// Fluid contribution: m_f * sum_j W_ij, including the self term.
@@ -183,6 +190,9 @@ void learnSPH::sph_math::compute_boundary_volumes(
 	const unsigned int n = static_cast<unsigned int>(boundary_particles.size());
 	volumes.assign(n, 0.0);
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(n))
+#endif
 	for (unsigned int i = 0; i < n; ++i)
 	{
 		// Assignment 2, Eq. (6): V_k = 1 / sum_l W_kl.
@@ -212,6 +222,9 @@ void learnSPH::sph_math::compute_boundary_masses(
 	masses.resize(volumes.size());
 
 	// Assignment 2, Eq. (7): m_k = V_k * rho_b.
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(volumes.size()))
+#endif
 	for (std::size_t i = 0; i < volumes.size(); ++i)
 	{
 		masses[i] = volumes[i] * boundary_density;
@@ -226,6 +239,9 @@ void learnSPH::sph_math::compute_compensated_mass(
 {
 	masses.resize(densities.size());
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(densities.size()))
+#endif
 	for (std::size_t i = 0; i < densities.size(); ++i)
 	{
 		// rho_k = m_b * sum_l W_kl  =>  V_k = m_b / rho_k.
@@ -246,6 +262,9 @@ void learnSPH::sph_math::compute_pressure(
 	pressures.resize(densities.size());
 
 	// Assignment 4, Eq. (11): clamp negative pressures to zero.
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(densities.size()))
+#endif
 	for (std::size_t i = 0; i < densities.size(); ++i)
 	{
 		pressures[i] = std::max(
@@ -271,6 +290,9 @@ void learnSPH::sph_math::compute_pressure_acceleration(
 			fluid_particles.size(), Eigen::Vector3d::Zero());
 	}
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(fluid_particles.size()))
+#endif
 	for (unsigned int i = 0; i < fluid_particles.size(); ++i)
 	{
 		Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
@@ -306,6 +328,9 @@ void learnSPH::sph_math::compute_pressure_acceleration(
 	}
 
 	const auto &ps = nsearch.point_set(fluid_point_set_id);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(fluid_particles.size()))
+#endif
 	for (unsigned int i = 0; i < fluid_particles.size(); ++i)
 	{
 		const double density_i = fluid_densities[i];
@@ -356,6 +381,9 @@ void learnSPH::sph_math::compute_friction_acceleration(
 			fluid_particles.size(), Eigen::Vector3d::Zero());
 	}
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(fluid_particles.size()))
+#endif
 	for (unsigned int i = 0; i < fluid_particles.size(); ++i)
 	{
 		Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
@@ -397,6 +425,9 @@ void learnSPH::sph_math::compute_friction_acceleration(
 	const auto &ps = nsearch.point_set(fluid_point_set_id);
 	const double denominator_offset = 0.01 * h * h;
 
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(fluid_particles.size()))
+#endif
 	for (unsigned int i = 0; i < fluid_particles.size(); ++i)
 	{
 		Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
@@ -443,8 +474,11 @@ void learnSPH::sph_math::compute_body_acceleration(
 	const Eigen::Vector3d &body_acceleration)
 {
 	// Assignment 4, Eq. (14): add the external/body acceleration.
-	for (Eigen::Vector3d &acceleration : accelerations)
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(learnSPH::parallel::should_run(accelerations.size()))
+#endif
+	for (std::size_t i = 0; i < accelerations.size(); ++i)
 	{
-		acceleration += body_acceleration;
+		accelerations[i] += body_acceleration;
 	}
 }

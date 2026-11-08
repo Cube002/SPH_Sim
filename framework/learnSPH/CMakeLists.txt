@@ -20,6 +20,7 @@ set(SOURCE_FILES
 	sampling.cpp
 	kernel.cpp
 	kernel.h
+	parallel.h
 	sph_math.cpp
 	sph_math.h)
     
