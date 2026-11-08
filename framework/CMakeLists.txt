@@ -22,5 +22,6 @@ add_subdirectory(learnSPH)
 add_subdirectory(tests)
 add_subdirectory(app)
 
-# Copy res folder
+# Copy res and obj folders
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/obj DESTINATION ${CMAKE_BINARY_DIR})

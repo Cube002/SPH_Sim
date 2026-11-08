@@ -14,6 +14,11 @@ add_executable(gravitysim main_gravitysim.cpp)
 add_dependencies(gravitysim learnSPH)
 target_link_libraries(gravitysim learnSPH)
 
+# Boundary sampling and fluid-boundary density estimation
+add_executable(boundary_app main_boundary.cpp)
+add_dependencies(boundary_app learnSPH)
+target_link_libraries(boundary_app learnSPH)
+
 # Temporary target for neighborhood search speed tests
 add_executable(searchSpeedTest searchSpeedTest.cpp)
 add_dependencies(searchSpeedTest learnSPH)

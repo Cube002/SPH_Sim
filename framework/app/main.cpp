@@ -34,6 +34,8 @@ int main()
 		Eigen::Vector3d::Zero(),
 		Eigen::Vector3d::Constant(box_size),
 		fluid_sampling_distance);
+	std::vector<Eigen::Vector3d> boundary_particles;//none at the moment
+	std::vector<Eigen::Vector3d> particles_velocity(particles.size(), Eigen::Vector3d::Zero());
 
 	//Prepare search module:
 	CompactNSearch::NeighborhoodSearch nsearch(compact_support);
@@ -41,6 +43,7 @@ int main()
 		particles[0].data(), particles.size(), true);
 
 	std::vector<double> densities;
+	std::vector<double> masses;
 
 	const int num_time_steps = 100;
 	const double dt = 0.01;
@@ -52,9 +55,21 @@ int main()
 		learnSPH::sph_math::compute_density(
 			particles, densities, nsearch, fluid_id,
 			particle_mass, smoothing_length);
-
-		const std::string filename = "../res/density_" + std::to_string(time_step) + ".vtk";
-		learnSPH::write_particles_to_vtk(filename, particles, densities);
+		// learnSPH::sph_math::compute_compensated_mass(
+		// 	densities, masses, particle_mass, fluid_density);
+		std::vector<Eigen::Vector3d> particle_accelerations(particles.size(),Eigen::Vector3d::Zero());
+		learnSPH::sph_math::compute_pressure_acceleration(particles,densities,particle_accelerations,nsearch,fluid_id,particle_mass,fluid_density,3,smoothing_length);
+		for(size_t i = 0; i < particles.size(); i++)
+		{
+			
+			
+			particles_velocity[i] += dt * particle_accelerations[i];
+			particles[i]+= dt * particles_velocity[i];
+		}
+		
+		
+		const std::string filename = "../res/masses_" + std::to_string(time_step) + ".vtk";
+		learnSPH::write_particles_to_vtk(filename, particles, masses);
 
 		time += dt;
 	}

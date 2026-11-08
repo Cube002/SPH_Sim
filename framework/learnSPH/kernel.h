@@ -25,7 +25,7 @@ namespace learnSPH
 		}
 		
 		// Gradient of kernel with respect to x_i: ∇_{xi} W(xi-xj; h)
-		inline Eigen::Vector3d cubic_spline_grad(const Eigen::Vector3d &xi, const Eigen::Vector3d &xj, const double h)
+		inline Eigen::Vector3d cubic_grad_spline(const Eigen::Vector3d &xi, const Eigen::Vector3d &xj, const double h)
 		{
 			const Eigen::Vector3d r = xi - xj;
 			const double dist = r.norm();

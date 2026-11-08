@@ -8,13 +8,13 @@ namespace k = learnSPH::kernel;
 constexpr double PI = 3.14159265358979323846;
 constexpr double alpha = 3.0 / (2.0 * PI);
 
-TEST_CASE("cubic_spline_grad: finite differences", "[kernel][grad]")
+TEST_CASE("cubic_grad_spline: finite differences", "[kernel][grad]")
 {
     const double h = 0.5;
     Eigen::Vector3d xi(0.1, 0.2, 0.3); //two arbitrary points so that the diff lies in the first branch
     Eigen::Vector3d xj(0.05, 0.15, 0.25);
     
-    Eigen::Vector3d grad_ana = k::cubic_spline_grad(xi, xj, h); //The function to test
+    Eigen::Vector3d grad_ana = k::cubic_grad_spline(xi, xj, h); //The function to test
     
     const double eps = 1e-6;
     Eigen::Vector3d grad_fd = Eigen::Vector3d::Zero();
@@ -41,13 +41,13 @@ TEST_CASE("cubic_spline_grad: finite differences", "[kernel][grad]")
     CHECK(grad_ana[2] == Catch::Approx(grad_fd[2]).epsilon(1e-6));
 }
 
-TEST_CASE("cubic_spline_grad: branch 2 finite differences", "[kernel][grad]")
+TEST_CASE("cubic_grad_spline: branch 2 finite differences", "[kernel][grad]")
 {
     const double h = 0.3;
     Eigen::Vector3d xi(0.0, 0.0, 0.0);
     Eigen::Vector3d xj(-0.4, 0.2, 0.1); // q will be in [1,2)
     
-    Eigen::Vector3d grad_ana = k::cubic_spline_grad(xi, xj, h);
+    Eigen::Vector3d grad_ana = k::cubic_grad_spline(xi, xj, h);
     
     const double eps = 1e-6;
     Eigen::Vector3d grad_fd = Eigen::Vector3d::Zero();
@@ -73,21 +73,21 @@ TEST_CASE("cubic_spline_grad: branch 2 finite differences", "[kernel][grad]")
     CHECK(grad_ana[2] == Catch::Approx(grad_fd[2]).epsilon(1e-6));
 }
 
-TEST_CASE("cubic_spline_grad: zero distance", "[kernel][grad]") // this is an edge case we should be carefull about. the grad at distance 0 should be zero
+TEST_CASE("cubic_grad_spline: zero distance", "[kernel][grad]") // this is an edge case we should be carefull about. the grad at distance 0 should be zero
 {
     Eigen::Vector3d xi(1.0, 2.0, 3.0);
     Eigen::Vector3d xj(1.0, 2.0, 3.0);
     const double h = 0.5;
-    Eigen::Vector3d grad = k::cubic_spline_grad(xi, xj, h);
+    Eigen::Vector3d grad = k::cubic_grad_spline(xi, xj, h);
     CHECK(grad.norm() == Catch::Approx(0.0).margin(1e-18));
 }
 
-TEST_CASE("cubic_spline_grad: compact support", "[kernel][grad]")
+TEST_CASE("cubic_grad_spline: compact support", "[kernel][grad]")
 {
     const double h = 0.5;
     Eigen::Vector3d xi(0.0, 0.0, 0.0);
     Eigen::Vector3d xj(1.5, 0.0, 0.0); // q = 3 > 2
-    Eigen::Vector3d grad = k::cubic_spline_grad(xi, xj, h);
+    Eigen::Vector3d grad = k::cubic_grad_spline(xi, xj, h);
     CHECK(grad.norm() == Catch::Approx(0.0).margin(1e-18));
 }
 
@@ -121,7 +121,7 @@ TEST_CASE("cubic_spline_grad: compact support random", "[kernel][grad]")
         Eigen::Vector3d xj(dist(rng), dist(rng), dist(rng));
         const double r = (xi-xj).norm();
         if (r > 2.0*h + 1e-12) { // outside support
-            auto grad = k::cubic_spline_grad(xi, xj, h);
+            auto grad = k::cubic_grad_spline(xi, xj, h);
             CHECK(grad.norm() == Catch::Approx(0.0).margin(1e-18));
         }
     }
