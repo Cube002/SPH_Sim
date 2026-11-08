@@ -1,25 +1,23 @@
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 17)
 
-# Local
-set(SOURCE_FILES
-    main.cpp)
-    
-add_executable(learnSPH_app ${SOURCE_FILES})
-add_dependencies(learnSPH_app learnSPH)
-target_link_libraries(learnSPH_app learnSPH)
+function(add_learnsph_app target source)
+    add_executable(${target} ${source})
+    add_dependencies(${target} learnSPH)
+    target_link_libraries(${target} learnSPH)
+endfunction()
 
-# Gravity simulation
-add_executable(gravitysim main_gravitysim.cpp)
-add_dependencies(gravitysim learnSPH)
-target_link_libraries(gravitysim learnSPH)
+# Assignment 1: neighborhood-search benchmark.
+add_learnsph_app(assignment1_search_speed assignment1_search_speed.cpp)
 
-# Boundary sampling and fluid-boundary density estimation
-add_executable(boundary_app main_boundary.cpp)
-add_dependencies(boundary_app learnSPH)
-target_link_libraries(boundary_app learnSPH)
+# Assignment 1: simple gravity/neighborhood demo.
+add_learnsph_app(assignment1_gravity_sim assignment1_gravity_sim.cpp)
 
-# Temporary target for neighborhood search speed tests
-add_executable(searchSpeedTest searchSpeedTest.cpp)
-add_dependencies(searchSpeedTest learnSPH)
-target_link_libraries(searchSpeedTest learnSPH)
+# Assignment 2/3: boundary sampling and fluid-boundary density.
+add_learnsph_app(assignment3_boundary_density assignment3_boundary_density.cpp)
+
+# Assignment 4: pressure, friction and body accelerations.
+add_learnsph_app(assignment4_forces_demo assignment4_forces_demo.cpp)
+
+# Assignment 5: first no-boundary baseline test case.
+add_learnsph_app(assignment5_test1_no_forces assignment5_test1_no_forces.cpp)

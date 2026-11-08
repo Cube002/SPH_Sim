@@ -51,33 +51,66 @@ namespace learnSPH
 			double base_particle_mass,
 			double boundary_density);
 
-		// Assignment 4, Eq. (11) and (12): pressure acceleration.
-		// `accelerations` must be initialized/zeroed by the caller; this function
-		// adds the pressure contribution.
+		// Assignment 4, Eq. (11): equation-of-state pressure, clamped to >= 0.
+		void compute_pressure(
+			const std::vector<double> &densities,
+			std::vector<double> &pressures,
+			double rest_density,
+			double stiffness);
+
+		// Assignment 4, Eq. (12): pressure acceleration without boundaries.
+		// `accelerations` must be zeroed by the caller; this function adds its
+		// contribution.
+		void compute_pressure_acceleration(
+			const std::vector<Eigen::Vector3d> &fluid_particles,
+			const std::vector<double> &fluid_densities,
+			const std::vector<double> &pressures,
+			std::vector<Eigen::Vector3d> &accelerations,
+			const CompactNSearch::NeighborhoodSearch &nsearch,
+			unsigned int fluid_point_set_id,
+			double fluid_particle_mass,
+			double h);
+
+		// Assignment 4, Eq. (12): pressure acceleration with fluid-boundary
+		// interaction. `accelerations` must be zeroed by the caller.
 		void compute_pressure_acceleration(
 			const std::vector<Eigen::Vector3d> &fluid_particles,
 			const std::vector<Eigen::Vector3d> &boundary_particles,
 			const std::vector<double> &fluid_densities,
+			const std::vector<double> &pressures,
 			const std::vector<double> &boundary_volumes,
-			std::vector<double> &pressures,
 			std::vector<Eigen::Vector3d> &accelerations,
 			const CompactNSearch::NeighborhoodSearch &nsearch,
 			unsigned int fluid_point_set_id,
 			unsigned int boundary_point_set_id,
 			double fluid_particle_mass,
 			double rest_density,
-			double stiffness,
 			double h);
 
-        void compute_pressure_acceleration(const std::vector<Eigen::Vector3d> &fluid_particles, const std::vector<double> &fluid_densities, std::vector<Eigen::Vector3d> &accelerations, const CompactNSearch::NeighborhoodSearch &nsearch, unsigned int fluid_point_set_id, double fluid_particle_mass, double rest_density, double stiffness, double h);
+		// Assignment 4, Eq. (13): friction acceleration without boundaries.
+		// `accelerations` must be zeroed by the caller; this function adds its
+		// contribution.
+		void compute_friction_acceleration(
+			const std::vector<Eigen::Vector3d> &fluid_particles,
+			const std::vector<Eigen::Vector3d> &fluid_velocities,
+			const std::vector<double> &fluid_densities,
+			std::vector<Eigen::Vector3d> &accelerations,
+			const CompactNSearch::NeighborhoodSearch &nsearch,
+			unsigned int fluid_point_set_id,
+			double fluid_particle_mass,
+			double fluid_viscosity,
+			double h);
 
-        // Assignment 4, Eq. (13): friction/viscosity acceleration.
-		// `accelerations` must be initialized/zeroed by the caller; this function
-		// adds the friction contribution.
+		// Assignment 4, Eq. (13): friction acceleration with fluid-boundary
+		// interaction. `boundary_velocities` may be empty for a stationary
+		// boundary; if non-empty it must match `boundary_particles`. This already
+		// supports future moving-boundary scenes. `accelerations` must be zeroed
+		// by the caller.
 		void compute_friction_acceleration(
 			const std::vector<Eigen::Vector3d> &fluid_particles,
 			const std::vector<Eigen::Vector3d> &boundary_particles,
 			const std::vector<Eigen::Vector3d> &fluid_velocities,
+			const std::vector<Eigen::Vector3d> &boundary_velocities,
 			const std::vector<double> &fluid_densities,
 			const std::vector<double> &boundary_volumes,
 			std::vector<Eigen::Vector3d> &accelerations,
@@ -90,10 +123,10 @@ namespace learnSPH
 			double h);
 
 		// Assignment 4, Eq. (14): external/body acceleration.
-		// `accelerations` must be initialized/zeroed by the caller; this function
-		// adds the body contribution.
+		// `accelerations` must be zeroed by the caller; this function adds its
+		// contribution.
 		void compute_body_acceleration(
 			std::vector<Eigen::Vector3d> &accelerations,
-			const Eigen::Vector3d &gravity);
+			const Eigen::Vector3d &body_acceleration);
 	};
 };

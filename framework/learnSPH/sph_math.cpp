@@ -1,7 +1,92 @@
 #include "sph_math.h"
 #include "kernel.h"
 
+#include <algorithm>
 #include <cassert>
+
+namespace
+{
+	void add_fluid_pressure_acceleration(
+		unsigned int i,
+		const std::vector<Eigen::Vector3d> &fluid_particles,
+		const std::vector<double> &fluid_densities,
+		const std::vector<double> &pressures,
+		const CompactNSearch::NeighborhoodSearch &nsearch,
+		unsigned int fluid_point_set_id,
+		double fluid_particle_mass,
+		double h,
+		Eigen::Vector3d &acceleration)
+	{
+		const double density_i = fluid_densities[i];
+		if (density_i <= 0.0) return;
+
+		const auto &ps = nsearch.point_set(fluid_point_set_id);
+		const double pressure_term_i =
+			pressures[i] / (density_i * density_i);
+
+		const unsigned int num_neighbors =
+			ps.n_neighbors(fluid_point_set_id, i);
+		for (unsigned int k = 0; k < num_neighbors; ++k)
+		{
+			const unsigned int j = ps.neighbor(fluid_point_set_id, i, k);
+			if (j == i) continue;
+
+			const double density_j = fluid_densities[j];
+			if (density_j <= 0.0) continue;
+
+			const double pressure_term_j =
+				pressures[j] / (density_j * density_j);
+			const Eigen::Vector3d grad_w = learnSPH::kernel::cubic_grad_spline(
+				fluid_particles[i], fluid_particles[j], h);
+
+			acceleration -= fluid_particle_mass
+				* (pressure_term_i + pressure_term_j) * grad_w;
+		}
+	}
+
+	void add_fluid_friction_acceleration(
+		unsigned int i,
+		const std::vector<Eigen::Vector3d> &fluid_particles,
+		const std::vector<Eigen::Vector3d> &fluid_velocities,
+		const std::vector<double> &fluid_densities,
+		const CompactNSearch::NeighborhoodSearch &nsearch,
+		unsigned int fluid_point_set_id,
+		double fluid_particle_mass,
+		double fluid_viscosity,
+		double h,
+		Eigen::Vector3d &acceleration)
+	{
+		const auto &ps = nsearch.point_set(fluid_point_set_id);
+		const double denominator_offset = 0.01 * h * h;
+
+		const unsigned int num_neighbors =
+			ps.n_neighbors(fluid_point_set_id, i);
+		for (unsigned int k = 0; k < num_neighbors; ++k)
+		{
+			const unsigned int j = ps.neighbor(fluid_point_set_id, i, k);
+			if (j == i) continue;
+
+			const double density_j = fluid_densities[j];
+			if (density_j <= 0.0) continue;
+
+			const Eigen::Vector3d displacement =
+				fluid_particles[i] - fluid_particles[j];
+			const double denominator =
+				displacement.squaredNorm() + denominator_offset;
+			if (denominator <= 0.0) continue;
+
+			const Eigen::Vector3d grad_w = learnSPH::kernel::cubic_grad_spline(
+				fluid_particles[i], fluid_particles[j], h);
+			const double directional_term = displacement.dot(grad_w)
+				/ denominator;
+
+			acceleration += 2.0 * fluid_viscosity
+				* (fluid_particle_mass / density_j)
+				* directional_term
+				* (fluid_velocities[i] - fluid_velocities[j]);
+		}
+	}
+}
 
 void learnSPH::sph_math::compute_density(
 	const std::vector<Eigen::Vector3d> &fluid_particles,
@@ -151,84 +236,142 @@ void learnSPH::sph_math::compute_compensated_mass(
 		masses[i] = volume * boundary_density;
 	}
 }
+
+void learnSPH::sph_math::compute_pressure(
+	const std::vector<double> &densities,
+	std::vector<double> &pressures,
+	double rest_density,
+	double stiffness)
+{
+	pressures.resize(densities.size());
+
+	// Assignment 4, Eq. (11): clamp negative pressures to zero.
+	for (std::size_t i = 0; i < densities.size(); ++i)
+	{
+		pressures[i] = std::max(
+			0.0, stiffness * (densities[i] - rest_density));
+	}
+}
+
+void learnSPH::sph_math::compute_pressure_acceleration(
+	const std::vector<Eigen::Vector3d> &fluid_particles,
+	const std::vector<double> &fluid_densities,
+	const std::vector<double> &pressures,
+	std::vector<Eigen::Vector3d> &accelerations,
+	const CompactNSearch::NeighborhoodSearch &nsearch,
+	unsigned int fluid_point_set_id,
+	double fluid_particle_mass,
+	double h)
+{
+	assert(fluid_particles.size() == fluid_densities.size());
+	assert(fluid_particles.size() == pressures.size());
+	if (accelerations.size() != fluid_particles.size())
+	{
+		accelerations.assign(
+			fluid_particles.size(), Eigen::Vector3d::Zero());
+	}
+
+	for (unsigned int i = 0; i < fluid_particles.size(); ++i)
+	{
+		Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
+		add_fluid_pressure_acceleration(
+			i, fluid_particles, fluid_densities, pressures,
+			nsearch, fluid_point_set_id, fluid_particle_mass, h,
+			acceleration);
+		accelerations[i] += acceleration;
+	}
+}
+
 void learnSPH::sph_math::compute_pressure_acceleration(
 	const std::vector<Eigen::Vector3d> &fluid_particles,
 	const std::vector<Eigen::Vector3d> &boundary_particles,
 	const std::vector<double> &fluid_densities,
+	const std::vector<double> &pressures,
 	const std::vector<double> &boundary_volumes,
-	std::vector<double> &pressures,
 	std::vector<Eigen::Vector3d> &accelerations,
 	const CompactNSearch::NeighborhoodSearch &nsearch,
 	unsigned int fluid_point_set_id,
 	unsigned int boundary_point_set_id,
 	double fluid_particle_mass,
 	double rest_density,
-	double stiffness,
 	double h)
-{}
-void learnSPH::sph_math::compute_pressure_acceleration(
+{
+	assert(fluid_particles.size() == fluid_densities.size());
+	assert(fluid_particles.size() == pressures.size());
+	assert(boundary_particles.size() == boundary_volumes.size());
+	if (accelerations.size() != fluid_particles.size())
+	{
+		accelerations.assign(
+			fluid_particles.size(), Eigen::Vector3d::Zero());
+	}
+
+	const auto &ps = nsearch.point_set(fluid_point_set_id);
+	for (unsigned int i = 0; i < fluid_particles.size(); ++i)
+	{
+		const double density_i = fluid_densities[i];
+		if (density_i <= 0.0) continue;
+
+		Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
+		add_fluid_pressure_acceleration(
+			i, fluid_particles, fluid_densities, pressures,
+			nsearch, fluid_point_set_id, fluid_particle_mass, h,
+			acceleration);
+
+		const double pressure_term_i =
+			pressures[i] / (density_i * density_i);
+		const unsigned int num_boundary_neighbors =
+			ps.n_neighbors(boundary_point_set_id, i);
+		for (unsigned int k = 0; k < num_boundary_neighbors; ++k)
+		{
+			const unsigned int boundary_index =
+				ps.neighbor(boundary_point_set_id, i, k);
+			const Eigen::Vector3d grad_w = kernel::cubic_grad_spline(
+				fluid_particles[i], boundary_particles[boundary_index], h);
+
+			acceleration -= rest_density
+				* boundary_volumes[boundary_index]
+				* pressure_term_i * grad_w;
+		}
+
+		accelerations[i] += acceleration;
+	}
+}
+
+void learnSPH::sph_math::compute_friction_acceleration(
 	const std::vector<Eigen::Vector3d> &fluid_particles,
+	const std::vector<Eigen::Vector3d> &fluid_velocities,
 	const std::vector<double> &fluid_densities,
 	std::vector<Eigen::Vector3d> &accelerations,
 	const CompactNSearch::NeighborhoodSearch &nsearch,
 	unsigned int fluid_point_set_id,
 	double fluid_particle_mass,
-	double rest_density,
-	double stiffness,
+	double fluid_viscosity,
 	double h)
 {
-	const auto &ps = nsearch.point_set(fluid_point_set_id);
-
-	// HINT 1 -- Equation (11): resize `pressures` to fluid_particles.size()
-	// and compute for every fluid particle i:
-	//     pressures[i] = max(0.0, stiffness * (fluid_densities[i] - rest_density));
-	int n = fluid_particles.size();
-	std::vector<double> pressures(n,0.0);
-	for(size_t i = 0; i < n; i++)//One hole loop just for computing pressures...
+	assert(fluid_particles.size() == fluid_velocities.size());
+	assert(fluid_particles.size() == fluid_densities.size());
+	if (accelerations.size() != fluid_particles.size())
 	{
-		pressures[i]= std::max(0.0,stiffness*(fluid_densities[i] - rest_density));
+		accelerations.assign(
+			fluid_particles.size(), Eigen::Vector3d::Zero());
 	}
 
-	for(size_t i = 0; i < n; i++)//n² loops
+	for (unsigned int i = 0; i < fluid_particles.size(); ++i)
 	{
-		const unsigned int num_neighbors = ps.n_neighbors(fluid_point_set_id, i);
-		Eigen::Vector3d acceleration(Eigen::Vector3d::Zero());
-		for (unsigned int k = 0; k < num_neighbors; ++k)
-		{
-			const unsigned int j = ps.neighbor(fluid_point_set_id, i, k);
-			if (j == i) continue;
-			Eigen::Vector3d gradW_ij = kernel::cubic_grad_spline(fluid_particles[i], fluid_particles[j], h);
-			acceleration += - fluid_particle_mass * (
-				pressures[i]/(fluid_densities[i]*fluid_densities[i]) +
-				pressures[j]/(fluid_densities[j]*fluid_densities[j]))
-				* gradW_ij;			
-		}
-		accelerations[i] = acceleration;
+		Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
+		add_fluid_friction_acceleration(
+			i, fluid_particles, fluid_velocities, fluid_densities,
+			nsearch, fluid_point_set_id, fluid_particle_mass,
+			fluid_viscosity, h, acceleration);
+		accelerations[i] += acceleration;
 	}
-	// HINT 2 -- Equation (12), fluid-fluid part:
-	// for each fluid neighbor j:
-	//     a_i -= m_j * (p_i / rho_i^2 + p_j / rho_j^2) * gradW_ij
-	// where gradW_ij = kernel::cubic_grad_spline(x_i, x_j, h).
-	//
-	// HINT 3 -- Equation (12), fluid-solid part:
-	// for each boundary neighbor k:
-	//     a_i -= rest_density * V_k * (p_i / rho_i^2) * gradW_ik
-	// where V_k = boundary_volumes[k]. The boundary has no pressure of its own.
-	//
-	// HINT 4 -- Neighbor access:
-	//     const auto &ps = nsearch.point_set(fluid_point_set_id);
-	//     ps.n_neighbors(fluid_point_set_id, i)
-	//     ps.neighbor(fluid_point_set_id, i, k)
-	// Does CompactNSearch include particle i itself? Check the density code above.
-	//
-	// HINT 5 -- Add into accelerations[i], do not overwrite it. The pressure
-	// kernel gradient at x_i - x_i is zero, so no explicit self term is needed.
 }
 
 void learnSPH::sph_math::compute_friction_acceleration(
 	const std::vector<Eigen::Vector3d> &fluid_particles,
 	const std::vector<Eigen::Vector3d> &boundary_particles,
 	const std::vector<Eigen::Vector3d> &fluid_velocities,
+	const std::vector<Eigen::Vector3d> &boundary_velocities,
 	const std::vector<double> &fluid_densities,
 	const std::vector<double> &boundary_volumes,
 	std::vector<Eigen::Vector3d> &accelerations,
@@ -240,33 +383,68 @@ void learnSPH::sph_math::compute_friction_acceleration(
 	double boundary_viscosity,
 	double h)
 {
-	// HINT 1 -- Equation (13), fluid-fluid part:
-	// for each fluid neighbor j:
-	//     a_i += 2 * nu_f * (m_j / rho_j) * (v_i - v_j)
-	//            * ((x_i - x_j).dot(gradW_ij))
-	//            / (|x_i - x_j|^2 + 0.01 * h^2)
-	// The dot product is a scalar; multiply it with the vector (v_i - v_j).
-	//
-	// HINT 2 -- Equation (13), fluid-solid part:
-	// the boundary is stationary, so v_k = 0 and (v_i - v_k) = v_i:
-	//     a_i += 2 * nu_b * V_k * v_i
-	//            * ((x_i - x_k).dot(gradW_ik))
-	//            / (|x_i - x_k|^2 + 0.01 * h^2)
-	//
-	// HINT 3 -- gradW_ij = kernel::cubic_grad_spline(x_i, x_j, h).
-	// Use .squaredNorm() for |x_i - x_j|^2 and .dot() for the scalar product.
-	//
-	// HINT 4 -- Add into accelerations[i], do not overwrite it. The velocity
-	// difference (v_i - v_i) is zero for j == i, so skipping self is harmless.
+	assert(fluid_particles.size() == fluid_velocities.size());
+	assert(fluid_particles.size() == fluid_densities.size());
+	assert(boundary_particles.size() == boundary_volumes.size());
+	assert(boundary_velocities.empty()
+		|| boundary_particles.size() == boundary_velocities.size());
+	if (accelerations.size() != fluid_particles.size())
+	{
+		accelerations.assign(
+			fluid_particles.size(), Eigen::Vector3d::Zero());
+	}
+
+	const auto &ps = nsearch.point_set(fluid_point_set_id);
+	const double denominator_offset = 0.01 * h * h;
+
+	for (unsigned int i = 0; i < fluid_particles.size(); ++i)
+	{
+		Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
+		add_fluid_friction_acceleration(
+			i, fluid_particles, fluid_velocities, fluid_densities,
+			nsearch, fluid_point_set_id, fluid_particle_mass,
+			fluid_viscosity, h, acceleration);
+
+		const unsigned int num_boundary_neighbors =
+			ps.n_neighbors(boundary_point_set_id, i);
+		for (unsigned int k = 0; k < num_boundary_neighbors; ++k)
+		{
+			const unsigned int boundary_index =
+				ps.neighbor(boundary_point_set_id, i, k);
+
+			const Eigen::Vector3d displacement =
+				fluid_particles[i] - boundary_particles[boundary_index];
+			const double denominator =
+				displacement.squaredNorm() + denominator_offset;
+			if (denominator <= 0.0) continue;
+
+			const Eigen::Vector3d grad_w = kernel::cubic_grad_spline(
+				fluid_particles[i], boundary_particles[boundary_index], h);
+			const double directional_term = displacement.dot(grad_w)
+				/ denominator;
+
+			const Eigen::Vector3d boundary_velocity =
+				boundary_velocities.empty()
+					? Eigen::Vector3d::Zero()
+					: boundary_velocities[boundary_index];
+
+			acceleration += 2.0 * boundary_viscosity
+				* boundary_volumes[boundary_index]
+				* directional_term
+				* (fluid_velocities[i] - boundary_velocity);
+		}
+
+		accelerations[i] += acceleration;
+	}
 }
 
 void learnSPH::sph_math::compute_body_acceleration(
 	std::vector<Eigen::Vector3d> &accelerations,
-	const Eigen::Vector3d &gravity)
+	const Eigen::Vector3d &body_acceleration)
 {
-	// HINT -- Equation (14): there are no neighbors involved here.
-	// For every particle i: accelerations[i] += gravity;
-	//
-	// Typical gravity vector: Eigen::Vector3d(0.0, 0.0, -9.81).
-	// This function should stay O(N) and needs no neighborhood search.
+	// Assignment 4, Eq. (14): add the external/body acceleration.
+	for (Eigen::Vector3d &acceleration : accelerations)
+	{
+		acceleration += body_acceleration;
+	}
 }
