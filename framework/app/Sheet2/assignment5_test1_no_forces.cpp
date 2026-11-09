@@ -6,9 +6,9 @@
 #include <Eigen/Dense>
 #include <CompactNSearch/CompactNSearch>
 
-#include "../learnSPH/io.h"
-#include "../learnSPH/sampling.h"
-#include "../learnSPH/sph_math.h"
+#include "../../learnSPH/io.h"
+#include "../../learnSPH/sampling.h"
+#include "../../learnSPH/sph_math.h"
 
 int main()
 {

@@ -6,7 +6,7 @@
 
 #include <Eigen/Dense>
 
-#include "../learnSPH/sampling.h"
+#include "../../learnSPH/sampling.h"
 #include "simulation_runner.h"
 
 namespace learnsph_app

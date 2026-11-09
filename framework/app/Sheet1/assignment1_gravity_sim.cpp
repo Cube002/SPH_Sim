@@ -8,8 +8,8 @@
 #include <Eigen/Dense>
 #include <CompactNSearch/CompactNSearch>
 
-#include "../learnSPH/io.h"
-#include "../learnSPH/sampling.h"
+#include "../../learnSPH/io.h"
+#include "../../learnSPH/sampling.h"
 
 int main()
 {

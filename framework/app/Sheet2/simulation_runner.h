@@ -13,9 +13,9 @@
 #include <Eigen/Dense>
 #include <CompactNSearch/CompactNSearch>
 
-#include "../learnSPH/io.h"
-#include "../learnSPH/parallel.h"
-#include "../learnSPH/sph_math.h"
+#include "../../learnSPH/io.h"
+#include "../../learnSPH/parallel.h"
+#include "../../learnSPH/sph_math.h"
 
 namespace learnsph_app
 {

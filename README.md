@@ -9,9 +9,9 @@ describes the current state and keeps a permanent recap of previous versions.
 
 ## Current Version
 
-- **Version:** `v0.2.4`
+- **Version:** `v0.2.6`
 - **Exercise sheet:** Exercise Sheet 2
-- **Status:** Complete for Exercise Sheet 2, tasks 1-5, including 5b, 5c, boundary-mass export, corrected fluid-box sampling, and the enlarged 5c scene with a smaller obstacle
+- **Status:** Complete for Exercise Sheet 2, tasks 1-5, including 5b, 5c, boundary-mass export, corrected fluid-box sampling, and the enlarged 5c scene with a smaller obstacle. App sources are organized by exercise sheet, with dedicated ParaView test-case executables for Assignments 1-3.
 
 ## Exercise Sheet Mapping
 
@@ -30,8 +30,8 @@ experiments:
 
 The related code is in:
 
-- `framework/app/assignment1_search_speed.cpp`
-- `framework/app/assignment1_gravity_sim.cpp`
+- `framework/app/Sheet1/assignment1_search_speed.cpp`
+- `framework/app/Sheet1/assignment1_gravity_sim.cpp`
 - `framework/learnSPH/bruteforcesearch.h`
 - `framework/learnSPH/bruteforcesearch.cpp`
 
@@ -43,9 +43,9 @@ Exercise Sheet 2 contains tasks 1-5:
 | --- | --- | --- |
 | 1 | Cubic spline kernel and gradient | `framework/learnSPH/kernel.*`, `framework/tests/kernel_tests.cpp` |
 | 2 | Sampling and boundary volume/mass correction | `framework/learnSPH/sampling.*`, boundary functions in `framework/learnSPH/sph_math.*`, `framework/tests/boundary_tests.cpp` |
-| 3 | Fluid density with boundary contribution | `framework/app/assignment3_boundary_density.cpp`, `framework/tests/density_tests.cpp` |
-| 4 | Pressure, friction, and body accelerations | `framework/app/assignment4_forces_demo.cpp`, `framework/tests/force_tests.cpp` |
-| 5 | Putting it together: WCSPH simulation | `framework/app/assignment5_*`, `framework/app/simulation_runner.h`, `framework/app/assignment5_scenes.h` |
+| 3 | Fluid density with boundary contribution | `framework/app/Sheet2/assignment3_boundary_density.cpp`, `framework/tests/density_tests.cpp` |
+| 4 | Pressure, friction, and body accelerations | `framework/app/Sheet2/assignment4_forces_demo.cpp`, `framework/tests/force_tests.cpp` |
+| 5 | Putting it together: WCSPH simulation | `framework/app/Sheet2/assignment5_*`, `framework/app/Sheet2/simulation_runner.h`, `framework/app/Sheet2/assignment5_scenes.h` |
 
 Exercise Sheet 2, task 5 contains these incremental test cases:
 
@@ -150,6 +150,9 @@ directory, so `build/res` and `build/obj` are available to the executables.
 | --- | --- |
 | `assignment1_search_speed` | Times brute-force search and `CompactNSearch` on sampled particle grids. |
 | `assignment1_gravity_sim` | Demonstrates particle movement under gravity with neighborhood interaction. |
+| `assignment1_fluid_density` | Sheet 2 Assignment 1b: samples a 20x20x20 fluid box and exports per-particle density. |
+| `assignment2_boundary_sampling` | Sheet 2 Assignment 2: samples an OBJ surface and exports corrected boundary volume and mass. |
+| `assignment3_fluid_boundary_density` | Sheet 2 Assignment 3b: samples a 20x20x20 fluid box above a boundary floor and exports fluid density. |
 | `assignment3_boundary_density` | Samples an OBJ boundary, computes corrected boundary volumes/masses, and computes fluid density including boundary particles. |
 | `assignment4_forces_demo` | Computes density, pressure, pressure acceleration, friction, and gravity for a fluid block above an OBJ sphere. |
 | `assignment5_test1_no_forces` | First Assignment 5 baseline: no pressure, no viscosity, no gravity, no boundary. |
@@ -174,6 +177,13 @@ build-release/res/
 
 The main output format is binary VTK:
 
+- `assignment1_fluid_density` writes `assignment1_fluid_density.vtk` with
+  scalar field `density`.
+- `assignment2_boundary_sampling` writes `assignment2_boundary_volume.vtk` and
+  `assignment2_boundary_mass.vtk` with scalar fields `volume` and `mass`.
+- `assignment3_fluid_boundary_density` writes `assignment3_fluid_density.vtk`
+  with scalar field `density`, plus `assignment3_floor_boundary.vtk` for the
+  floor particles.
 - `assignment3_boundary_density` writes `boundary_volume.vtk`,
   `boundary_mass.vtk`, and `fluid_density_boundary.vtk`.
 - `assignment4_forces_demo` writes `assignment4_density.vtk`,
@@ -248,7 +258,7 @@ Visualization challenges addressed by the script:
 
 The Assignment 5a, 5b, and 5c executables based on
 `run_wcsph_simulation()` use `learnsph_app::SimulationConfig` from
-`framework/app/simulation_runner.h`. Change values in the corresponding
+`framework/app/Sheet2/simulation_runner.h`. Change values in the corresponding
 executable, then rebuild. `assignment5_test1_no_forces` keeps its original
 standalone fixed-step setup.
 
@@ -326,21 +336,26 @@ SPH_Sim/
     ├── CMakeLists.txt             # Top-level build, OpenMP, dependency setup
     ├── app/
     │   ├── CMakeLists.txt
-    │   ├── assignment1_search_speed.cpp
-    │   ├── assignment1_gravity_sim.cpp
-    │   ├── assignment3_boundary_density.cpp
-    │   ├── assignment4_forces_demo.cpp
-    │   ├── assignment5_test1_no_forces.cpp
-    │   ├── assignment5_a_i_pressure.cpp
-    │   ├── assignment5_a_ii_viscosity.cpp
-    │   ├── assignment5_a_iii_two_blocks.cpp
-    │   ├── assignment5_a_iv_gravity.cpp
-    │   ├── assignment5_a_v_floor.cpp
-    │   ├── assignment5_a_vi_boundary_viscosity.cpp
-    │   ├── assignment5_b_dam_break.cpp
-    │   ├── assignment5_c_obstacle_dam_break.cpp
-    │   ├── assignment5_scenes.h     # Reusable Assignment 5 scene builders
-    │   └── simulation_runner.h      # WCSPH loop, CFL, culling, timer, export, OpenMP
+    │   ├── Sheet1/
+    │   │   ├── assignment1_search_speed.cpp
+    │   │   └── assignment1_gravity_sim.cpp
+    │   └── Sheet2/
+    │       ├── assignment1_fluid_density.cpp
+    │       ├── assignment2_boundary_sampling.cpp
+    │       ├── assignment3_boundary_density.cpp
+    │       ├── assignment3_fluid_boundary_density.cpp
+    │       ├── assignment4_forces_demo.cpp
+    │       ├── assignment5_test1_no_forces.cpp
+    │       ├── assignment5_a_i_pressure.cpp
+    │       ├── assignment5_a_ii_viscosity.cpp
+    │       ├── assignment5_a_iii_two_blocks.cpp
+    │       ├── assignment5_a_iv_gravity.cpp
+    │       ├── assignment5_a_v_floor.cpp
+    │       ├── assignment5_a_vi_boundary_viscosity.cpp
+    │       ├── assignment5_b_dam_break.cpp
+    │       ├── assignment5_c_obstacle_dam_break.cpp
+    │       ├── assignment5_scenes.h     # Reusable Assignment 5 scene builders
+    │       └── simulation_runner.h      # WCSPH loop, CFL, culling, timer, export, OpenMP
     ├── learnSPH/
     │   ├── CMakeLists.txt
     │   ├── bruteforcesearch.h/.cpp
@@ -471,6 +486,8 @@ The repository uses exercise-sheet-based versions:
 - `v0.2.2`: Optional boundary-particle mass export
 - `v0.2.3`: Corrected fluid-box sampling near boundaries
 - `v0.2.4`: Larger 5c fluid reservoir and smaller obstacle
+- `v0.2.5`: App sources reorganized into `Sheet1` and `Sheet2`
+- `v0.2.6`: Dedicated VTK test cases for Sheet 2 Assignments 1-3
 - `v0.3.0`: Exercise Sheet 3 (future)
 - Patch versions are used for additional work or fixes within the same exercise
   sheet.
@@ -493,6 +510,8 @@ When creating a new version:
 | `v0.2.2` | Exercise Sheet 2 | Added optional boundary-particle VTK export with corrected boundary mass as scalar data, including the `--export-boundary` and `--no-export-boundary` command-line flags. |
 | `v0.2.3` | Exercise Sheet 2 | Fixed fluid-box sampling so particles are consistently placed half a spacing inside every box face. This removes the initial over-density at the floor/walls and the resulting startup bounce. Updated 5b to 18,750 fluid particles and 5c to 21,875 fluid particles. |
 | `v0.2.4` | Exercise Sheet 2 | Enlarged the 5c fluid reservoir to 0.35 x 0.35 x 0.30 m and reduced the obstacle to 80% of its original width and height. Release-mode 2 s run produced 36,750 initial fluid particles, 201 frames, final max speed 2.162 m/s, and 611 culled particles. |
+| `v0.2.5` | Exercise Sheet 2 | Moved the app sources into `framework/app/Sheet1` and `framework/app/Sheet2`. Executable targets and output names are unchanged. |
+| `v0.2.6` | Exercise Sheet 2 | Added dedicated Sheet 2 test-case executables for Assignments 1-3: 20x20x20 fluid density, boundary surface volume/mass, and fluid density above a boundary floor. Each writes ParaView-ready VTK files. |
 
 ### Adding the Next Version
 

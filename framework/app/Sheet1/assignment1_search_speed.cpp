@@ -11,9 +11,9 @@
 #include <Eigen/Dense>
 #include <CompactNSearch/CompactNSearch>
 
-#include "../learnSPH/io.h"
-#include "../learnSPH/sampling.h"
-#include "../learnSPH/bruteforcesearch.h"
+#include "../../learnSPH/io.h"
+#include "../../learnSPH/sampling.h"
+#include "../../learnSPH/bruteforcesearch.h"
 
 using namespace std::chrono;
 
