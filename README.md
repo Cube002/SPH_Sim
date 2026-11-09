@@ -9,9 +9,9 @@ describes the current state and keeps a permanent recap of previous versions.
 
 ## Current Version
 
-- **Version:** `v0.2.0`
+- **Version:** `v0.2.4`
 - **Exercise sheet:** Exercise Sheet 2
-- **Status:** Complete for Exercise Sheet 2, tasks 1-5
+- **Status:** Complete for Exercise Sheet 2, tasks 1-5, including 5b, 5c, boundary-mass export, corrected fluid-box sampling, and the enlarged 5c scene with a smaller obstacle
 
 ## Exercise Sheet Mapping
 
@@ -58,7 +58,12 @@ Exercise Sheet 2, task 5 contains these incremental test cases:
 | `assignment5_a_iv_gravity` | Remove the second block and enable gravity. |
 | `assignment5_a_v_floor` | Add a boundary-particle floor. |
 | `assignment5_a_vi_boundary_viscosity` | Add boundary viscosity `nu_b = 1.0`. |
-| `assignment5_b_dam_break` | Dam-break scene in a rectangular tank. |
+| `assignment5_b_dam_break` | Official 5b dam-break scene: 0.15 x 0.25 x 0.5 m fluid in a 0.15 x 0.8 x 1.0 m tank. |
+| `assignment5_c_obstacle_dam_break` | Official 5c showcase: 36,750 fluid particles, 20% smaller obstacle, 2 s simulation. |
+
+The 5b scene is mapped to the z-up coordinate system as width x length x height.
+The tank is enlarged by one particle diameter. In both 5b and 5c, particles that
+leave the tank are removed from the simulation.
 
 ### Future Exercise Sheets
 
@@ -116,7 +121,25 @@ cd build/app
 ./assignment5_a_v_floor
 ./assignment5_a_vi_boundary_viscosity
 ./assignment5_b_dam_break
+./assignment5_c_obstacle_dam_break
 ```
+
+The two large simulations accept optional positional overrides and flags:
+
+```bash
+./assignment5_b_dam_break [simulation_time] [threads] [frame_interval] [--export-boundary]
+./assignment5_c_obstacle_dam_break [simulation_time] [threads] [frame_interval] [--export-boundary]
+```
+
+For example:
+
+```bash
+./assignment5_c_obstacle_dam_break 2.0 8 0.01 --export-boundary
+```
+
+`--export-boundary` writes an additional boundary VTK file for every frame,
+using the corrected boundary mass as the scalar field. Use
+`--no-export-boundary` to disable it again when a default enables it.
 
 The CMake build copies `framework/res` and `framework/obj` into the build
 directory, so `build/res` and `build/obj` are available to the executables.
@@ -136,7 +159,8 @@ directory, so `build/res` and `build/obj` are available to the executables.
 | `assignment5_a_iv_gravity` | Assignment 5a(iv): pressure, fluid viscosity, and gravity enabled. |
 | `assignment5_a_v_floor` | Assignment 5a(v): boundary-particle floor added. |
 | `assignment5_a_vi_boundary_viscosity` | Assignment 5a(vi): large boundary viscosity enabled. |
-| `assignment5_b_dam_break` | Assignment 5b: dam-break simulation with the Assignment 5b parameters. |
+| `assignment5_b_dam_break` | Assignment 5b: official dam-break simulation with `B = 1000`, `nu_f = 0.0025`, `nu_b = 0`, and `dt_max = 0.25 ms`. |
+| `assignment5_c_obstacle_dam_break` | Assignment 5c: 36,750-particle obstacle dam break with a 20% smaller obstacle, 2 s simulation time, 201 exported frames. |
 
 ## Output and Visualization
 
@@ -155,19 +179,78 @@ The main output format is binary VTK:
 - `assignment4_forces_demo` writes `assignment4_density.vtk`,
   `assignment4_pressure.vtk`, `assignment4_acceleration.vtk`, and
   `assignment4_velocity.vtk`.
-- Assignment 5 executables write numbered frames such as
+- Assignment 5 executables write numbered fluid frames such as
   `assignment5_b_dam_break_0.vtk`, `assignment5_b_dam_break_1.vtk`, etc.
+- With boundary export enabled, each frame also writes
+  `assignment5_b_dam_break_boundary_0.vtk`,
+  `assignment5_b_dam_break_boundary_1.vtk`, etc. These files contain the
+  boundary particle positions and their corrected mass as a scalar field named
+  `mass`.
 
-Each Assignment 5 frame contains particle positions, density as a scalar field,
-and velocity as a vector field. Use ParaView or Blender to inspect the frames.
-The VTK files are ignored by Git.
+Each fluid frame contains particle positions, density as a scalar field, and
+velocity as a vector field. Use ParaView or Blender to inspect the frames.
+The Blender importer ignores `_boundary_` frames; use ParaView to inspect the
+boundary-mass files. The VTK files are ignored by Git.
+
+The validated 2 s runs produced:
+
+| Scene | Fluid particles | Frames | Final max speed | Culled particles | Loop time |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `assignment5_b_dam_break` | 18,750 | 201 | 1.250 m/s | 480 | 262 s |
+| `assignment5_c_obstacle_dam_break` | 36,750 | 201 | 2.162 m/s | 611 | 502 s |
+
+Both runs used 8 OpenMP threads and `frame_interval = 0.01`. All exported
+positions, densities, and velocities remained finite, with density maxima around
+`1110-1120 kg/m^3`.
+
+### Blender Visualization
+
+`tools/blender_vtk_sequence.py` imports a binary VTK particle sequence into
+Blender and colors particles by velocity with Geometry Nodes. Run it from the
+repository root with Blender's background mode:
+
+```bash
+blender --python tools/blender_vtk_sequence.py -- \
+  --pattern 'build-release/res/assignment5_c_obstacle_dam_break_*.vtk' \
+  --radius 0.006 --speed-max 8.0 --fps 20
+```
+
+To render the full imported sequence to PNG frames:
+
+```bash
+blender --python tools/blender_vtk_sequence.py -- \
+  --pattern 'build-release/res/assignment5_c_obstacle_dam_break_*.vtk' \
+  --radius 0.006 --speed-max 8.0 --fps 20 --render \
+  --output '//sph_animation/'
+```
+
+The script creates a 1920x1080 scene, a camera, lights, a tank floor, and an
+animated point cloud. It uses a fixed-size mesh and a per-particle radius
+attribute because particle counts change when escaped particles are culled. A
+velocity-colored material maps `0 .. speed-max` from blue through cyan and
+yellow to red. Rendering the 201 frames at 20 FPS gives an approximately 10 s
+video; for a slower showcase, lower the FPS or duplicate frames.
+
+Visualization challenges addressed by the script:
+
+- Blender has no built-in importer for the binary, big-endian VTK files written
+  by `learnSPH::write_particles_to_vtk`.
+- Creating 20,000+ separate Blender objects is impractical, so the script uses
+  one mesh plus Geometry Nodes instancing.
+- Culling changes the particle count between frames, so the script keeps a
+  fixed maximum-size mesh and sets the radius of missing particles to zero.
+- Velocity is stored as a point attribute and converted to a color ramp in the
+  shader, rather than assigning materials per object.
+- Geometry Nodes and shader attribute APIs differ between Blender versions; the
+  script targets Blender 4.x.
 
 ## Simulation Configuration
 
-The Assignment 5a and 5b executables based on `run_wcsph_simulation()` use
-`learnsph_app::SimulationConfig` from `framework/app/simulation_runner.h`.
-Change values in the corresponding executable, then rebuild.
-`assignment5_test1_no_forces` keeps its original standalone fixed-step setup.
+The Assignment 5a, 5b, and 5c executables based on
+`run_wcsph_simulation()` use `learnsph_app::SimulationConfig` from
+`framework/app/simulation_runner.h`. Change values in the corresponding
+executable, then rebuild. `assignment5_test1_no_forces` keeps its original
+standalone fixed-step setup.
 
 | Field | Meaning |
 | --- | --- |
@@ -186,6 +269,11 @@ Change values in the corresponding executable, then rebuild.
 | `use_cfl` | Enables or disables the CFL time-step limit. |
 | `use_openmp` | Enables or disables OpenMP execution. |
 | `num_threads` | OpenMP thread count. `0` means automatic, capped at 8. |
+| `cull_outside_bounds` | Removes escaped or non-finite fluid particles before each step. |
+| `bounds_min` | Minimum corner of the allowed fluid region when culling is enabled. |
+| `bounds_max` | Maximum corner of the allowed fluid region when culling is enabled. |
+| `max_wall_clock_seconds` | Graceful wall-clock limit for very long simulations; default 3600 s. |
+| `export_boundary_particles` | Writes a separate boundary VTK frame with corrected boundary mass as scalar data. |
 
 Example:
 
@@ -196,6 +284,10 @@ config.fluid_viscosity = 0.1;
 config.gravity = Eigen::Vector3d(0.0, 0.0, -9.81);
 config.use_openmp = true;
 config.num_threads = 4;
+config.cull_outside_bounds = true;
+config.bounds_min = Eigen::Vector3d(-0.01, -0.01, -0.01);
+config.bounds_max = Eigen::Vector3d(1.21, 0.36, 0.71);
+config.export_boundary_particles = true;
 ```
 
 The `OMP_NUM_THREADS` environment variable is also respected when
@@ -227,6 +319,8 @@ SPH_Sim/
 ├── KERNEL_DOCUMENTATION.md
 ├── NOTES.md
 ├── NotesForPresentation.md
+├── tools/
+│   └── blender_vtk_sequence.py    # Binary VTK sequence importer for Blender
 ├── build/                         # Local build output, ignored by Git
 └── framework/
     ├── CMakeLists.txt             # Top-level build, OpenMP, dependency setup
@@ -244,8 +338,9 @@ SPH_Sim/
     │   ├── assignment5_a_v_floor.cpp
     │   ├── assignment5_a_vi_boundary_viscosity.cpp
     │   ├── assignment5_b_dam_break.cpp
+    │   ├── assignment5_c_obstacle_dam_break.cpp
     │   ├── assignment5_scenes.h     # Reusable Assignment 5 scene builders
-    │   └── simulation_runner.h      # WCSPH loop, CFL, timer, export, OpenMP
+    │   └── simulation_runner.h      # WCSPH loop, CFL, culling, timer, export, OpenMP
     ├── learnSPH/
     │   ├── CMakeLists.txt
     │   ├── bruteforcesearch.h/.cpp
@@ -294,13 +389,15 @@ The simulation runner follows the assignment outline:
 1. Build the scene (fluid and optional boundary particles).
 2. Compute corrected boundary volumes and masses once.
 3. For each time step:
-   1. Update `CompactNSearch` neighbors.
-   2. Compute fluid densities.
-   3. Compute pressures.
-   4. Compute pressure, friction, and body accelerations.
-   5. Compute `dt = min(dt_CFL, dt_default)`.
-   6. Perform semi-implicit Euler integration.
-   7. Export a VTK frame when due.
+   1. Remove particles outside the configured bounds or with non-finite state.
+   2. Update `CompactNSearch` neighbors.
+   3. Compute fluid densities.
+   4. Compute pressures.
+   5. Compute pressure, friction, and body accelerations.
+   6. Compute `dt = min(dt_CFL, dt_default)`.
+   7. Perform semi-implicit Euler integration.
+   8. Export a VTK frame when due.
+   9. Stop gracefully if the wall-clock limit is reached.
 
 ## Tests
 
@@ -311,7 +408,7 @@ cmake --build build -j"$(nproc)"
 ./build/tests/learnSPH_tests
 ```
 
-Current test result: **928 assertions in 19 test cases**.
+Current test result: **934 assertions in 19 test cases**.
 
 The tests cover:
 
@@ -354,10 +451,14 @@ easy to compare serial and parallel runs.
   `boundary_velocities`, but scene updates and boundary re-sampling are not
   implemented yet.
 - The floor scene uses a large single-layer boundary particle plane.
-- The dam-break executable runs to `0.5 s` by default; increase
-  `config.simulation_time` for a longer simulation.
+- The 5b and 5c executables run to `2.0 s` by default. Use the positional
+  simulation-time override for shorter tests or longer showcase runs.
 - `CompactNSearch::find_neighbors()` and VTK export are still serial, so
   parallel speedup is limited by those stages.
+- Culling changes the fluid particle count, so later frames contain fewer
+  particles than the initial frame.
+- The Blender importer targets Blender 4.x and was not run in this environment;
+  it requires a local Blender installation.
 - CTest integration is not configured; tests are run as a single binary.
 
 ## Versioning Policy
@@ -365,10 +466,14 @@ easy to compare serial and parallel runs.
 The repository uses exercise-sheet-based versions:
 
 - `v0.1.0`: Exercise Sheet 1
-- `v0.2.0`: Exercise Sheet 2
+- `v0.2.0`: Exercise Sheet 2 baseline
+- `v0.2.1`: Completion of Exercise Sheet 2 tasks 5b and 5c
+- `v0.2.2`: Optional boundary-particle mass export
+- `v0.2.3`: Corrected fluid-box sampling near boundaries
+- `v0.2.4`: Larger 5c fluid reservoir and smaller obstacle
 - `v0.3.0`: Exercise Sheet 3 (future)
-- Patch versions such as `v0.2.1` are used for fixes that do not add a new
-  exercise sheet.
+- Patch versions are used for additional work or fixes within the same exercise
+  sheet.
 
 When creating a new version:
 
@@ -383,7 +488,11 @@ When creating a new version:
 | Version | Exercise Sheet | Summary |
 | --- | --- | --- |
 | `v0.1.0` | Exercise Sheet 1 | Initial framework usage, brute-force neighborhood search, `CompactNSearch` comparison, and gravity particle demonstration. |
-| `v0.2.0` | Exercise Sheet 2 | Tasks 1-5: cubic spline kernel and tests, sampling and boundary volume/mass correction, density with boundary contribution, pressure/friction/body forces, incremental Assignment 5 scenes, dam-break simulation, VTK velocity export, wall-clock timer, OpenMP parallelization, and project documentation. |
+| `v0.2.0` | Exercise Sheet 2 | Tasks 1-5 baseline: cubic spline kernel and tests, sampling and boundary volume/mass correction, density with boundary contribution, pressure/friction/body forces, incremental Assignment 5 scenes, dam-break simulation, VTK velocity export, wall-clock timer, OpenMP parallelization, and project documentation. |
+| `v0.2.1` | Exercise Sheet 2 | Completed 5b with the official 0.15 x 0.25 x 0.5 m fluid and 0.15 x 0.8 x 1.0 m tank configuration; added the 5c 23,660-particle obstacle dam-break showcase; added escaped-particle culling, non-finite particle removal, command-line simulation overrides, graceful 1 h wall-clock stopping, 2 s validation runs, and the Blender binary-VTK sequence importer with velocity coloring. |
+| `v0.2.2` | Exercise Sheet 2 | Added optional boundary-particle VTK export with corrected boundary mass as scalar data, including the `--export-boundary` and `--no-export-boundary` command-line flags. |
+| `v0.2.3` | Exercise Sheet 2 | Fixed fluid-box sampling so particles are consistently placed half a spacing inside every box face. This removes the initial over-density at the floor/walls and the resulting startup bounce. Updated 5b to 18,750 fluid particles and 5c to 21,875 fluid particles. |
+| `v0.2.4` | Exercise Sheet 2 | Enlarged the 5c fluid reservoir to 0.35 x 0.35 x 0.30 m and reduced the obstacle to 80% of its original width and height. Release-mode 2 s run produced 36,750 initial fluid particles, 201 frames, final max speed 2.162 m/s, and 611 culled particles. |
 
 ### Adding the Next Version
 

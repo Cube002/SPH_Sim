@@ -21,3 +21,7 @@ cmake_install.cmake
 
 # Simulation output files
 *.vtk
+
+# Python cache files
+__pycache__/
+*.pyc

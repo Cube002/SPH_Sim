@@ -3,6 +3,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 #include <Eigen/Dense>
 
@@ -18,7 +19,8 @@ namespace learnSPH
 
 	// VTK
 	void write_tri_mesh_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& vertices, const std::vector<std::array<int, 3>>& triangles, const std::vector<Eigen::Vector3d>& normals = std::vector<Eigen::Vector3d>());
-	void write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles, const std::vector<double>& particle_scalar_data, const std::vector<Eigen::Vector3d>& particle_vector_data);
+	void write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles, const std::vector<double>& particle_scalar_data, const std::vector<Eigen::Vector3d>& particle_vector_data, const std::string& particle_scalar_name = "scalar");
+	void write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles, const std::vector<double>& particle_scalar_data, const std::string& particle_scalar_name);
 	void write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles, const std::vector<double>& particle_scalar_data);
 	void write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles);
 	void write_empty(std::string path);

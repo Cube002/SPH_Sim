@@ -32,3 +32,6 @@ add_learnsph_app(assignment5_a_vi_boundary_viscosity assignment5_a_vi_boundary_v
 
 # Assignment 5b: dam break.
 add_learnsph_app(assignment5_b_dam_break assignment5_b_dam_break.cpp)
+
+# Assignment 5c: large showcase scene.
+add_learnsph_app(assignment5_c_obstacle_dam_break assignment5_c_obstacle_dam_break.cpp)

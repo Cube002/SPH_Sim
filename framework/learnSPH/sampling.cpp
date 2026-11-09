@@ -1,24 +1,30 @@
 #include "sampling.h"
 
+#include <algorithm>
+#include <cmath>
+
 void learnSPH::sampling::fluid_box(std::vector<Eigen::Vector3d>& particles, const Eigen::Vector3d& bottom, const Eigen::Vector3d& top, const double sampling_distance)
 {
 	// Center the sampling
 	Eigen::Vector3d b = bottom + 0.5*sampling_distance*Eigen::Vector3d::Ones();
 	Eigen::Vector3d t = top - 0.5*sampling_distance*Eigen::Vector3d::Ones();
+	int counts[3] = {0, 0, 0};
 	for (int i = 0; i < 3; i++) {
 		const double l = t[i] - b[i];
-		const int n = (int)(l/sampling_distance) + 1;
-		const double sampled = n*sampling_distance;
+		counts[i] = std::max(
+			0, (int)std::floor(l/sampling_distance + 1e-10));
+		const double sampled = counts[i]*sampling_distance;
 		const double remainder = l - sampled;
 		b[i] += 0.5 * remainder;
-		t[i] -= 0.5 * remainder;
 	}
 
 	// Sample
-	const double eps = 1e-10;
-	for (double x = b[0]; x < t[0] + eps; x += sampling_distance) {
-		for (double y = b[1]; y < t[1] + eps; y += sampling_distance) {
-			for (double z = b[2]; z < t[2] + eps; z += sampling_distance) {
+	for (int i = 0; i <= counts[0]; i++) {
+		const double x = b[0] + i*sampling_distance;
+		for (int j = 0; j <= counts[1]; j++) {
+			const double y = b[1] + j*sampling_distance;
+			for (int k = 0; k <= counts[2]; k++) {
+				const double z = b[2] + k*sampling_distance;
 				particles.push_back({x, y, z});
 			}
 		}

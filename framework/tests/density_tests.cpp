@@ -109,10 +109,16 @@ TEST_CASE("uniform fluid box interior density matches the reference density", "[
 	learnSPH::sampling::fluid_box(
 		particles,
 		Eigen::Vector3d::Zero(),
-		Eigen::Vector3d::Constant((n_per_axis - 0.5) * dx),
+		Eigen::Vector3d::Constant(n_per_axis * dx),
 		dx);
 
 	REQUIRE(particles.size() == static_cast<std::size_t>(n_per_axis * n_per_axis * n_per_axis));
+	CHECK(particles.front()[0] == Catch::Approx(0.5 * dx).epsilon(1e-12));
+	CHECK(particles.front()[1] == Catch::Approx(0.5 * dx).epsilon(1e-12));
+	CHECK(particles.front()[2] == Catch::Approx(0.5 * dx).epsilon(1e-12));
+	CHECK(particles.back()[0] == Catch::Approx((n_per_axis - 0.5) * dx).epsilon(1e-12));
+	CHECK(particles.back()[1] == Catch::Approx((n_per_axis - 0.5) * dx).epsilon(1e-12));
+	CHECK(particles.back()[2] == Catch::Approx((n_per_axis - 0.5) * dx).epsilon(1e-12));
 
 	CompactNSearch::NeighborhoodSearch nsearch(sizes.compact_support);
 	const unsigned int fluid_id = nsearch.add_point_set(

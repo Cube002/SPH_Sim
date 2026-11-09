@@ -92,7 +92,7 @@ void learnSPH::write_tri_mesh_to_vtk(std::string path, const std::vector<Eigen::
 	}
 }
 
-void learnSPH::write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles, const std::vector<double>& particle_scalar_data, const std::vector<Eigen::Vector3d>& particle_vector_data)
+void learnSPH::write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles, const std::vector<double>& particle_scalar_data, const std::vector<Eigen::Vector3d>& particle_vector_data, const std::string& particle_scalar_name)
 {
 	// Input checking
 	if ((path.size() < 5) || (path.substr(path.size() - 4) != ".vtk")) {
@@ -188,7 +188,7 @@ void learnSPH::write_particles_to_vtk(std::string path, const std::vector<Eigen:
 
 
 		if (particle_scalar_data.size() > 0) {
-			outfile << "scalar" << " 1 " << n_particles << " double\n";
+			outfile << particle_scalar_name << " 1 " << n_particles << " double\n";
 			std::vector<double> scalar_to_write;
 			scalar_to_write.insert(scalar_to_write.end(), particle_scalar_data.begin(), particle_scalar_data.end());
 			_swap_bytes_inplace<double>(&scalar_to_write[0], (int)scalar_to_write.size());
@@ -212,6 +212,11 @@ void learnSPH::write_particles_to_vtk(std::string path, const std::vector<Eigen:
 	}
 
 	outfile.close();
+}
+
+void learnSPH::write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles, const std::vector<double>& particle_scalar_data, const std::string& particle_scalar_name)
+{
+	write_particles_to_vtk(path, particles, particle_scalar_data, std::vector<Eigen::Vector3d>(), particle_scalar_name);
 }
 
 void learnSPH::write_particles_to_vtk(std::string path, const std::vector<Eigen::Vector3d>& particles, const std::vector<double>& particle_scalar_data)
